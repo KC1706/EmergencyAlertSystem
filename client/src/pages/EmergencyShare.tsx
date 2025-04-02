@@ -116,6 +116,19 @@ Time: ${emergencyInfo.time ? new Date(emergencyInfo.time).toLocaleString() : new
             </pre>
           </div>
           
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-sm font-medium text-yellow-800 flex items-center mb-1">
+              <span className="text-yellow-500 mr-1">ⓘ</span>
+              Important Note About Sending:
+            </p>
+            <ul className="text-xs text-yellow-700 list-disc ml-6">
+              <li>The buttons below will open your device's messaging apps</li>
+              <li>You will need to manually press "Send" in each app</li>
+              <li>This approach doesn't require paid services but needs manual confirmation</li>
+              <li>Try multiple methods for the best chance of reaching someone</li>
+            </ul>
+          </div>
+          
           <Separator className="my-6" />
           
           <div className="space-y-4">
@@ -124,38 +137,50 @@ Time: ${emergencyInfo.time ? new Date(emergencyInfo.time).toLocaleString() : new
             <div className="grid grid-cols-2 gap-3">
               <Button 
                 onClick={shareViaWebShare} 
-                className="flex items-center justify-center gap-2"
+                className="flex items-center justify-center gap-2 h-auto py-3"
                 variant="default"
               >
-                <Share2 size={16} />
-                Share
+                <div>
+                  <Share2 size={16} className="mx-auto mb-1" />
+                  <div className="text-xs">Share via Device</div>
+                  <div className="text-[10px] opacity-70">(opens share menu)</div>
+                </div>
               </Button>
               
               <Button 
                 onClick={copyToClipboard} 
-                className="flex items-center justify-center gap-2"
+                className="flex items-center justify-center gap-2 h-auto py-3"
                 variant="outline"
               >
-                <Copy size={16} />
-                Copy
+                <div>
+                  <Copy size={16} className="mx-auto mb-1" />
+                  <div className="text-xs">Copy to Clipboard</div>
+                  <div className="text-[10px] opacity-70">(paste anywhere)</div>
+                </div>
               </Button>
               
               <Button 
                 onClick={sendSms} 
-                className="flex items-center justify-center gap-2"
+                className="flex items-center justify-center gap-2 h-auto py-3"
                 variant="secondary"
               >
-                <MessageSquare size={16} />
-                SMS
+                <div>
+                  <MessageSquare size={16} className="mx-auto mb-1" />
+                  <div className="text-xs">Open SMS App</div>
+                  <div className="text-[10px] opacity-70">(press send after)</div>
+                </div>
               </Button>
               
               <Button 
                 onClick={sendEmail} 
-                className="flex items-center justify-center gap-2"
+                className="flex items-center justify-center gap-2 h-auto py-3"
                 variant="secondary"
               >
-                <Mail size={16} />
-                Email
+                <div>
+                  <Mail size={16} className="mx-auto mb-1" />
+                  <div className="text-xs">Open Email App</div>
+                  <div className="text-[10px] opacity-70">(press send after)</div>
+                </div>
               </Button>
             </div>
           </div>

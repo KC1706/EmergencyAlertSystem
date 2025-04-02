@@ -129,6 +129,19 @@ export default function Contacts({ lastLocation }: ContactsProps) {
           </button>
         </div>
         
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-sm font-medium text-blue-800 flex items-center mb-1">
+            <span className="material-icons text-blue-500 mr-1" style={{ fontSize: '1rem' }}>info</span>
+            How Emergency Notifications Work:
+          </p>
+          <ul className="text-xs text-blue-700 list-disc ml-6">
+            <li>In an emergency, the app will prepare messages but <b>won't automatically send them</b></li>
+            <li>Your phone's SMS app or email client will open with pre-filled messages</li>
+            <li>You'll need to manually press "Send" in each app to notify your contacts</li>
+            <li>This approach doesn't require any paid services but does require manual confirmation</li>
+          </ul>
+        </div>
+        
         {isLoading ? (
           <div className="py-10 text-center">
             <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-blue-500 border-current border-r-transparent"></div>

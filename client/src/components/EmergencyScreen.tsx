@@ -99,7 +99,19 @@ export default function EmergencyScreen({
         <p className="text-2xl my-4 font-bold">Calling emergency in: {countdown}s...</p>
         
         <div className="bg-gray-100 p-4 rounded-md mb-4 text-left">
-          <p className="text-sm mb-2">Emergency message will be sent to:</p>
+          <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded-md">
+            <p className="text-sm font-medium text-orange-800 flex items-center">
+              <span className="material-icons text-orange-500 mr-1" style={{ fontSize: '1rem' }}>info</span>
+              When you click "CALL 911 NOW" or the countdown finishes:
+            </p>
+            <ul className="text-xs text-orange-700 list-disc ml-6 mt-1">
+              <li>Message apps will be opened for each contact</li>
+              <li>You'll need to press send in each app</li>
+              <li>Messages are pre-filled with your emergency info</li>
+            </ul>
+          </div>
+          
+          <p className="text-sm font-medium mb-2">Emergency message will be prepared for:</p>
           {contacts.length === 0 ? (
             <p className="text-gray-500 italic">No emergency contacts configured</p>
           ) : (
@@ -113,13 +125,13 @@ export default function EmergencyScreen({
                   {contact.sendSms && contact.phone && (
                     <div className="flex items-center">
                       <span className="material-icons text-xs mr-1">message</span> 
-                      {contact.phone}
+                      {contact.phone} <span className="text-xs text-gray-400">(requires manual send)</span>
                     </div>
                   )}
                   {contact.sendEmail && contact.email && (
                     <div className="flex items-center">
                       <span className="material-icons text-xs mr-1">email</span> 
-                      {contact.email}
+                      {contact.email} <span className="text-xs text-gray-400">(requires manual send)</span>
                     </div>
                   )}
                 </div>
