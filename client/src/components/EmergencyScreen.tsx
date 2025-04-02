@@ -34,21 +34,14 @@ export default function EmergencyScreen({
   // Send emergency notifications mutation
   const sendEmergencyMutation = useMutation({
     mutationFn: async () => {
-      try {
-        // First try the direct messaging methods
-        const result = await sendEmergencyNotifications(severity, location, contacts);
-        return result;
-      } catch (error) {
-        console.error("Error sending notifications:", error);
-        // Fall back to the sharing page if direct messaging fails
-        navigate(`/emergency-share?severity=${severity}&lat=${location.lat}&lng=${location.lng}`);
-        throw error;
-      }
+      // Send SMS notifications via API
+      const result = await sendEmergencyNotifications(severity, location, contacts);
+      return result;
     },
     onSuccess: (data) => {
       toast({
         title: "Emergency Alerts Sent",
-        description: `Sent to ${data.sentCount} contacts`,
+        description: `Sent SMS to ${data.sentCount} contacts`,
         variant: "success"
       });
       
@@ -59,14 +52,14 @@ export default function EmergencyScreen({
       onCall();
     },
     onError: (error) => {
+      console.error("Error sending notifications:", error);
       toast({
-        title: "Using Alternative Messaging",
-        description: "Opening emergency sharing options",
-        variant: "default"
+        title: "Error Sending Emergency Alerts",
+        description: "Failed to send SMS notifications",
+        variant: "destructive"
       });
       
-      // If error, we've already navigated to the share page
-      // so just close this screen
+      // Close this screen even on error
       onCall();
     }
   });
@@ -99,19 +92,19 @@ export default function EmergencyScreen({
         <p className="text-2xl my-4 font-bold">Calling emergency in: {countdown}s...</p>
         
         <div className="bg-gray-100 p-4 rounded-md mb-4 text-left">
-          <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded-md">
-            <p className="text-sm font-medium text-orange-800 flex items-center">
-              <span className="material-icons text-orange-500 mr-1" style={{ fontSize: '1rem' }}>info</span>
-              When you click "CALL 911 NOW" or the countdown finishes:
+          <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-sm font-medium text-green-800 flex items-center">
+              <span className="material-icons text-green-500 mr-1" style={{ fontSize: '1rem' }}>info</span>
+              When the countdown finishes or you click "CALL 911 NOW":
             </p>
-            <ul className="text-xs text-orange-700 list-disc ml-6 mt-1">
-              <li>Message apps will be opened for each contact</li>
-              <li>You'll need to press send in each app</li>
-              <li>Messages are pre-filled with your emergency info</li>
+            <ul className="text-xs text-green-700 list-disc ml-6 mt-1">
+              <li>Emergency SMS will be sent automatically to your contacts</li>
+              <li>Messages include your location and emergency details</li>
+              <li>No manual intervention needed</li>
             </ul>
           </div>
           
-          <p className="text-sm font-medium mb-2">Emergency message will be prepared for:</p>
+          <p className="text-sm font-medium mb-2">Emergency SMS will be sent to:</p>
           {contacts.length === 0 ? (
             <p className="text-gray-500 italic">No emergency contacts configured</p>
           ) : (
@@ -122,16 +115,10 @@ export default function EmergencyScreen({
                   <span className="font-medium">{contact.name}</span>
                 </div>
                 <div className="text-sm text-gray-600 ml-5">
-                  {contact.sendSms && contact.phone && (
+                  {contact.phone && (
                     <div className="flex items-center">
                       <span className="material-icons text-xs mr-1">message</span> 
-                      {contact.phone} <span className="text-xs text-gray-400">(requires manual send)</span>
-                    </div>
-                  )}
-                  {contact.sendEmail && contact.email && (
-                    <div className="flex items-center">
-                      <span className="material-icons text-xs mr-1">email</span> 
-                      {contact.email} <span className="text-xs text-gray-400">(requires manual send)</span>
+                      {contact.phone} <span className="text-xs text-green-600">(automatic SMS)</span>
                     </div>
                   )}
                 </div>

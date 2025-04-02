@@ -1,0 +1,105 @@
+AV 
+
+cURLPHPJAVAC#CPythonRubyJavaScriptNodeJS
+
+Overview
+DLT SMS API
+GET Method
+POST Method (single)
+POST Method (multiple)
+DLT SMS (Manual) API
+Quick SMS API
+OTP Message API
+Wallet Balance API
+Error Codes
+Sign up for API Key
+Overview
+Bulk SMS, DLT SMS, OTP SMS API. Our Bulk SMS API work with PHP, JAVA, C#, C, Python, Ruby, Javascript, NodeJS, etc. Secure, robust and easy to integrate APIs to send DLT Approved SMS, Promotional SMS, Service Implicit SMS, Service Explicit SMS via REST API. Check Bulk SMS Price here.
+
+Authorization Key
+Fast2SMS expects for the API Key to be included in all API requests to the server in a header for POST requests & in query parameters for GET requests.
+Get Your API Authorization Key from Fast2SMS Dev API section for FREE which you need to add in each API request as following:
+
+GET https://www.fast2sms.com/dev/wallet?authorization=YOUR_API_KEY
+
+POST authorization: YOUR_API_KEY
+
+ You must replace YOUR_API_KEY with your Fast2SMS account API Authorization Key which look like this: "weBQKBrtZzLnD2ZUEnUYJIO40zZGnjgZm3BA1SAUd0qZ56gHm0k3X45DWR9c"
+DLT SMS API
+You can use DLT SMS API to send your DLT approved SMS from Fast2SMS.
+
+Service Implicit/Inferred: All Transactional SMS will come under this category like OTP, Alerts, Informative SMS. This route is for all numbers (DND+NonDND) & will work 24×7.
+
+Service Explicit: All type of promotional or marketing SMS will come under this category. This route can only deliver SMS on NonDND numbers from 10 AM to 9 PM only.
+
+You first need to submit your DLT approved message in Fast2SMS & once Fast2SMS will add your message text you can use this API for sending Bulk SMS.
+
+ Watch this video for DEMO
+GET Method
+GET https://www.fast2sms.com/dev/bulkV2
+
+curl -X GET \
+  'https://www.fast2sms.com/dev/bulkV2?authorization=YOUR_API_KEY&sender_id=DLT_SENDER_ID&message=YOUR_MESSAGE_ID&variables_values=12345|asdaswdx&route=dlt&numbers=9999999999,8888888888,7777777777'
+DLT SMS Route Success Response:
+{
+    "return": true,
+    "request_id": "lwdtp7cjyqxvfe9",
+    "message": [
+        "Message sent successfully"
+    ]
+}
+Following are the parameter to be used for GET API:
+
+HTTP Request
+GET https://www.fast2sms.com/dev/bulkV2
+
+ You must replace YOUR_API_KEY with your Fast2SMS account API Authorization Key.
+Body
+Parameter	Required	Description
+authorization	true	Provide "YOUR_API_KEY". Sign up for API Key
+sender_id	true	Your 3-6 letter DLT approved Sender ID like "FSTSMS", before using you need to first submit it to Fast2SMS for approval here.
+message	true	Your Message_ID like, "111111" you can get your approved Message ID here.
+variables_values	true	If you've used {#var#} inside your DLT approved SMS then you can submit values for those variables like: "Rahul|8888888888|6695" seperated by pipe "|".
+
+NOTE:
+1) Use the same variable sequence in which you've approved in message template.
+2) If your message don't have any variables you can skip variables_values field.
+route	true	For DLT SMS route use "dlt"
+numbers	true	You can send multiple mobile numbers seperated by comma like: "8888888888,9999999999,6666666666"
+flash	false	This field is optional, it will use "0" as default value or you can set to "1" for sending flash message.
+schedule_time	false	This field is optional, it will use "null" as default value or you can set to a future date and time in format YYYY-MM-DD-HH-MM
+POST Method (single)
+POST https://www.fast2sms.com/dev/bulkV2
+
+curl -X POST \
+  https://www.fast2sms.com/dev/bulkV2 \
+  -H 'authorization: YOUR_API_KEY' \
+  -d 'sender_id=DLT_SENDER_ID&message=YOUR_MESSAGE_ID&variables_values=12345|asdaswdx&route=dlt&numbers=9999999999,8888888888,7777777777'
+DLT SMS Route Success Response:
+{
+    "return": true,
+    "request_id": "lwdtp7cjyqxvfe9",
+    "message": [
+        "Message sent successfully"
+    ]
+}
+Following are the parameter to be used for POST API:
+
+HTTP Request
+POST https://www.fast2sms.com/dev/bulkV2
+
+ You must replace YOUR_API_KEY with your Fast2SMS account API Authorization Key.
+Headers
+Parameter	Required	Description
+authorization	true	Provide "YOUR_API_KEY". Sign up for API Key
+sender_id	true	Your 3-6 letter DLT approved Sender ID like "FSTSMS", before using you need to first submit it to Fast2SMS for approval here.
+message	true	Your Message_ID like, "111111" you can get your approved Message ID here.
+variables_values	true	If you've used {#var#} inside your DLT approved SMS then you can submit values for those variables like: "Rahul|8888888888|6695" seperated by pipe "|".
+
+NOTE:
+1) Use the same variable sequence in which you've approved in message template.
+2) If your message don't have any variables you can skip variables_values field.
+route	true	For DLT SMS route use "dlt"
+numbers	true	You can send multiple mobile numbers seperated by comma like: "8888888888,9999999999,6666666666"
+flash	false	This field is optional, it will use "0" as default value or you can set to "1" for sending flash message.
+schedule_time	false	This field is optional, it will ...

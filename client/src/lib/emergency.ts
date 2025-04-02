@@ -17,75 +17,36 @@ interface SMSResponse {
 }
 
 /**
- * Process browser-based notification methods as fallback
- * @param contacts - Array of contacts to notify
- * @param message - Emergency message
- * @param location - User's location
- * @param successCount - Reference to success counter
- * @param failureCount - Reference to failure counter
- * @param errors - Reference to errors array
+ * Log notification attempt (but don't actually send via browser)
+ * @param contacts - Array of contacts notified
+ * @param message - Emergency message sent
+ * @param success - Whether the message was sent successfully
+ * @param errorMessage - Optional error message if there was a failure
  */
-async function processBrowserBasedNotifications(
+async function logNotifications(
   contacts: Contact[],
   message: string,
-  location: { lat: number; lng: number },
-  successCount: number,
-  failureCount: number,
-  errors: string[]
+  success: boolean,
+  errorMessage?: string
 ): Promise<void> {
-  // Process contacts one by one
+  // Log each contact notification in the system
   for (const contact of contacts) {
     try {
-      // Try creating direct message links appropriate for contact
-      const messageURL = createMessageUrl(contact, message, location);
-      
-      // Open the messaging URL in a new tab/window
-      window.open(messageURL, '_blank');
-      
-      // Consider this a success if the URL opens
-      successCount++;
-      
-      // Log notification attempt
       await apiRequest('POST', '/api/emergency/log', {
         contactId: contact.id,
         message: message,
-        success: true
+        success: success,
+        errorMessage: errorMessage || 'SMS notification attempt'
       });
     } catch (error) {
-      failureCount++;
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      errors.push(`Failed to send to ${contact.name}: ${errorMsg}`);
-      
-      // Log failure
-      await apiRequest('POST', '/api/emergency/log', {
-        contactId: contact.id,
-        message: message,
-        success: false,
-        errorMessage: errorMsg
-      });
-    }
-  }
-  
-  // Try to use Web Share API as a backup if available
-  if (navigator.share && successCount === 0) {
-    try {
-      await navigator.share({
-        title: 'EMERGENCY: Crash Detected',
-        text: message,
-        url: `https://www.google.com/maps?q=${location.lat},${location.lng}`
-      });
-      successCount++;
-    } catch (shareError) {
-      // Web Share API failed or was cancelled
-      console.error('Web Share API error:', shareError);
+      console.error('Failed to log notification:', error);
     }
   }
 }
 
 /**
- * Send emergency notifications to all emergency contacts using 
- * a combination of available methods - web browser sharing,
- * direct messaging links, etc.
+ * Send emergency notifications to all emergency contacts via SMS.
+ * This is used for automatic emergency notifications when accidents are detected.
  */
 export async function sendEmergencyNotifications(
   severity: string,
@@ -115,7 +76,7 @@ export async function sendEmergencyNotifications(
     let failureCount = 0;
     const errors: string[] = [];
 
-    // First try direct SMS delivery via our API
+    // Get contacts with valid phone numbers and format them for SMS
     const phoneNumbers = contacts
       .filter(contact => contact.phone && contact.phone.trim() !== '')
       .map(contact => {
@@ -140,7 +101,7 @@ export async function sendEmergencyNotifications(
     
     if (phoneNumbers.length > 0) {
       try {
-        // Use the combined SMS endpoint that handles routing to the best provider
+        // Send SMS using the best available SMS provider
         const smsResult = await sendSMS(phoneNumbers, emergencyMessage);
         
         if (smsResult.success && smsResult.sentCount) {
@@ -158,40 +119,35 @@ export async function sendEmergencyNotifications(
           }
         } else {
           console.error('SMS sending failed:', smsResult.message || smsResult.error);
+          failureCount += phoneNumbers.length;
+          errors.push(`Failed to send SMS: ${smsResult.message || smsResult.error}`);
           
-          // Only fallback to browser-based methods if direct SMS fails
-          await processBrowserBasedNotifications(
-            contacts, 
-            emergencyMessage, 
-            location, 
-            successCount, 
-            failureCount, 
-            errors
+          // Log the failed attempts
+          await logNotifications(
+            contacts.filter(c => c.phone), 
+            emergencyMessage,
+            false,
+            `SMS sending failed: ${smsResult.message || smsResult.error}`
           );
         }
       } catch (error) {
         console.error('Failed to send via SMS API:', error);
+        failureCount += phoneNumbers.length;
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        errors.push(`Failed to send via SMS API: ${errorMsg}`);
         
-        // Fallback to browser-based methods
-        await processBrowserBasedNotifications(
-          contacts, 
-          emergencyMessage, 
-          location,
-          successCount,
-          failureCount,
-          errors
+        // Log the failed attempts
+        await logNotifications(
+          contacts.filter(c => c.phone),
+          emergencyMessage,
+          false,
+          `SMS API error: ${errorMsg}`
         );
       }
     } else {
-      // No phone numbers available, use browser-based methods
-      await processBrowserBasedNotifications(
-        contacts, 
-        emergencyMessage, 
-        location,
-        successCount,
-        failureCount,
-        errors
-      );
+      // No phone numbers available
+      errors.push("No valid phone numbers found for emergency contacts");
+      console.error("No valid phone numbers found for emergency contacts");
     }
 
     return {
@@ -204,40 +160,6 @@ export async function sendEmergencyNotifications(
     console.error('Failed to send emergency notifications:', error);
     throw error;
   }
-}
-
-/**
- * Creates a direct message URL based on the contact's information
- */
-function createMessageUrl(
-  contact: Contact, 
-  message: string,
-  location: { lat: number; lng: number }
-): string {
-  // SMS link for mobile devices
-  if (contact.phone) {
-    // URL encode the message
-    const encodedMessage = encodeURIComponent(message);
-    return `sms:${contact.phone}?body=${encodedMessage}`;
-  }
-  
-  // Email fallback (if contact has email)
-  if (contact.email) {
-    const subject = encodeURIComponent('EMERGENCY: Crash Detected');
-    const body = encodeURIComponent(message);
-    return `mailto:${contact.email}?subject=${subject}&body=${body}`;
-  }
-  
-  // WhatsApp (if number is available)
-  if (contact.phone) {
-    // Format phone number for WhatsApp - remove non-digits
-    const whatsappNumber = contact.phone.replace(/\D/g, '');
-    const encodedMessage = encodeURIComponent(message);
-    return `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
-  }
-  
-  // Default to a manual copy-paste page
-  return `/emergency-share?message=${encodeURIComponent(message)}&lat=${location.lat}&lng=${location.lng}`;
 }
 
 /**
@@ -261,21 +183,6 @@ export function makeEmergencyCall(): boolean {
     console.error('Failed to initiate emergency call:', error);
     return false;
   }
-}
-
-/**
- * Generate a shareable emergency link to be copied manually
- */
-export function generateShareableLink(severity: string, location: { lat: number; lng: number }): string {
-  const baseUrl = window.location.origin;
-  const params = new URLSearchParams({
-    severity,
-    lat: location.lat.toString(),
-    lng: location.lng.toString(),
-    time: new Date().toISOString()
-  });
-  
-  return `${baseUrl}/emergency-share?${params.toString()}`;
 }
 
 /**

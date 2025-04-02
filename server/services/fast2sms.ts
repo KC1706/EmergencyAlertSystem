@@ -50,35 +50,29 @@ export async function sendSMS(phoneNumbers: string[], message: string): Promise<
   console.log('Fast2SMS message:', trimmedMessage);
 
   try {
-    // Fast2SMS API V2 endpoint
+    // Fast2SMS API endpoint (updated per latest docs)
     const apiEndpoint = 'https://www.fast2sms.com/dev/bulkV2';
     
     // Log API key (partial - only first few characters for security)
     const apiKeyPartial = process.env.FAST2SMS_API_KEY?.substring(0, 5) + '...' + process.env.FAST2SMS_API_KEY?.substring(process.env.FAST2SMS_API_KEY.length - 5);
     console.log('Using Fast2SMS API key (partial):', apiKeyPartial);
     
-    // Try direct API call according to Fast2SMS documentation
-    // Use 'dlt' or 'v3' route since 'q' (quick) route requires a paid account
-    const params = {
-      authorization: process.env.FAST2SMS_API_KEY,
-      message: trimmedMessage,
-      language: 'english',
-      route: 'v3', // promotional route which has fewer restrictions
-      numbers: validPhoneNumbers.join(','),
-      flash: '0',
-      sender_id: 'FSTSMS' // Default sender ID
-    };
-    
-    const queryString = new URLSearchParams(params).toString();
-    const requestUrl = `${apiEndpoint}?${queryString}`;
-    
+    // Updated API format based on Fast2SMS documentation (non-DLT route for now)
     console.log('Fast2SMS attempting API request to:', apiEndpoint);
     
-    const response = await fetch(requestUrl, {
-      method: 'GET',
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
       headers: {
-        'Cache-Control': 'no-cache'
-      }
+        'authorization': process.env.FAST2SMS_API_KEY,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        route: 'q', // Using quick SMS route (no DLT registration required)
+        message: trimmedMessage,
+        language: 'english',
+        flash: '0',
+        numbers: validPhoneNumbers.join(',')
+      }).toString()
     });
 
     const responseText = await response.text();
