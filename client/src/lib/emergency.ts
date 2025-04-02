@@ -117,8 +117,26 @@ export async function sendEmergencyNotifications(
 
     // First try direct SMS delivery via our API
     const phoneNumbers = contacts
-      .filter(contact => contact.phone)
-      .map(contact => contact.phone!);
+      .filter(contact => contact.phone && contact.phone.trim() !== '')
+      .map(contact => {
+        let phone = contact.phone!.trim();
+        
+        // Ensure Indian numbers have the +91 prefix if they don't already have it
+        if (phone.length === 10 && /^\d{10}$/.test(phone)) {
+          // This appears to be a 10-digit Indian number without country code
+          phone = '+91' + phone;
+        } else if (phone.startsWith('0') && phone.length === 11 && /^0\d{10}$/.test(phone)) {
+          // This appears to be a 10-digit Indian number with leading 0
+          phone = '+91' + phone.substring(1);
+        } else if (!phone.startsWith('+') && !phone.startsWith('00')) {
+          // If there's no international prefix, assume Indian number
+          phone = '+91' + phone.replace(/^91/, ''); // Remove 91 prefix if it exists
+        }
+        
+        return phone;
+      });
+    
+    console.log('Formatted phone numbers for emergency SMS:', phoneNumbers);
     
     if (phoneNumbers.length > 0) {
       try {
