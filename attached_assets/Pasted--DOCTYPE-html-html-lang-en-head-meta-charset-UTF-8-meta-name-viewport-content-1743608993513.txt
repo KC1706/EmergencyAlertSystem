@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Helmet Accident Detection</title>
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Chart.js for force visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="appStyle1.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Smart Helmet Accident Detection</h1>
+        
+        <div id="connection-status" class="status disconnected">
+            Bluetooth: Disconnected
+        </div>
+        
+        <!-- <button id="connect-bluetooth">Connect Helmet</button> -->
+        <button id="test-alert">Simulate Accident (Test)</button>
+        <button id="connect-bluetooth">Connect Helmet</button>
+<div id="connection-status" class="status disconnected">Bluetooth: Disconnected</div>
+        
+        <div id="dashboard">
+            <div class="sensor-panel">
+                <h3>Crash Severity: <span id="severity">NONE</span></h3>
+                <div id="severity-meter">
+                    <div id="severity-indicator"></div>
+                </div>
+                <p>Last Impact Force: <span id="last-force">0</span> G</p>
+            </div>
+            
+            <div class="sensor-panel">
+                <h3>Location</h3>
+                <div id="map"></div>
+                <p id="coordinates">Lat: 0, Lng: 0</p>
+                <p>Last Update: <span id="last-update">Never</span></p>
+            </div>
+            
+            <div class="sensor-panel">
+                <h3>Impact Forces</h3>
+                <canvas id="g-forces-chart"></canvas>
+            </div>
+            
+            <div class="sensor-panel">
+                <h3>Sensor Data</h3>
+                <p>Acceleration X: <span id="acc-x">0</span></p>
+                <p>Acceleration Y: <span id="acc-y">0</span></p>
+                <p>Acceleration Z: <span id="acc-z">0</span></p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="emergency-screen">
+        <h2 style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">🚨 EMERGENCY DETECTED! 🚨</h2>
+        <p id="countdown" style="font-size: 1.5em; color: white;">Calling emergency in: 15s...</p>
+        <div class="emergency-buttons">
+            <button id="im-ok-btn">I'M OK (Cancel)</button>
+            <button id="call-now-btn">CALL 911 NOW</button>
+        </div>
+    </div>
+
+    <div id="buzzer-status" style="position: fixed; bottom: 10px; right: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+        Buzzer Detection: <span id="buzzer-state">OFF</span>
+        <br>
+        Dominant Frequency: <span id="debug-frequency">0 Hz</span>
+    </div>
+
+    <!-- Microphone permission button (optional) -->
+    <button id="enable-mic" style="position: fixed; bottom: 60px; right: 10px;">Enable Microphone</button>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <script src="Appjs1.js">
+       
+    </script>
+</body>
+</html>

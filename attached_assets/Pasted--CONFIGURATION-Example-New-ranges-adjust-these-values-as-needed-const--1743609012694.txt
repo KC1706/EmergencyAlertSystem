@@ -1,0 +1,481 @@
+// ========== CONFIGURATION ==========
+// Example: New ranges (adjust these values as needed)
+const SEVERITY_LEVELS = {
+    mild: 7,     // 3G force (previously 2)
+    moderate: 15,  // 6G force (previously 4)
+    severe: 35     // 9G+ force (previously 6)
+};
+
+const EMERGENCY_CONTACTS = [
+    "+11234567890", // Replace with actual numbers
+    "+10987654321"
+];
+
+// ========== STATE VARIABLES ==========
+let bluetoothDevice;
+let bluetoothServer;
+let bluetoothService;
+let bluetoothCharacteristic;
+let countdown = 15;
+let countdownInterval;
+let lastLocation = { lat: 0, lng: 0 };
+let map;
+let marker;
+let forceChart;
+let emergencyActive = false;
+const DATA_UPDATE_INTERVAL = 1000; // 1 second
+let lastDataTime = 0;
+
+// ========== INITIALIZATION ==========
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    initForceChart();
+    setupEventListeners();
+});
+
+function initMap() {
+    map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    marker = L.marker([0, 0]).addTo(map);
+}
+
+function initForceChart() {
+    const ctx = document.getElementById('g-forces-chart').getContext('2d');
+    forceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['X', 'Y', 'Z', 'Total'],
+            datasets: [{
+                label: 'Impact Forces (G)',
+                backgroundColor: ['#ff6384','#36a2eb','#ffce56','#4bc0c0'],
+                borderColor: ['#ff6384','#36a2eb','#ffce56','#4bc0c0'],
+                borderWidth: 1,
+                data: [0, 0, 0, 0]
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 0,
+                    max: 12, // Increased from 10G to 30G to accommodate severe impacts
+                    title: {
+                        display: true,
+                        text: 'Force (G)',
+                        font: {
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        stepSize: 5, // Show labels every 5G
+                        callback: function(value) {
+                            return value + 'G'; // Add "G" unit to ticks
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(200, 200, 200, 0.2)' // Lighter grid lines
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false // Hide vertical grid lines
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false // Hide legend if not needed
+                }
+            }
+        }
+    });
+}
+
+function setupEventListeners() {
+    document.getElementById('connect-bluetooth').addEventListener('click', connectBluetooth);
+    document.getElementById('test-alert').addEventListener('click', simulateAccident);
+    document.getElementById('im-ok-btn').addEventListener('click', cancelEmergency);
+    document.getElementById('call-now-btn').addEventListener('click', callEmergencyNow);
+}
+
+// // ========== BLUETOOTH CONNECTION ==========
+// async function connectBluetooth() {
+//     try {
+//         bluetoothDevice = await navigator.bluetooth.requestDevice({
+//             acceptAllDevices: true,
+//             optionalServices: ['00001101-0000-1000-8000-00805f9b34fb']
+//         });
+        
+//         bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        
+//         bluetoothServer = await bluetoothDevice.gatt.connect();
+//         updateConnectionStatus(true);
+        
+//         bluetoothService = await bluetoothServer.getPrimaryService('00001101-0000-1000-8000-00805f9b34fb');
+//         bluetoothCharacteristic = await bluetoothService.getCharacteristic('00001143-0000-1000-8000-00805f9b34fb');
+//         await bluetoothCharacteristic.startNotifications();
+//         bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleData);
+        
+//         showToast("Connected to helmet!", 'success');
+//     } catch (error) {
+//         console.error("Bluetooth error:", error);
+//         showToast(`Connection failed: ${error.message}`, 'error');
+//         updateConnectionStatus(false);
+//     }
+// }
+
+// function onDisconnected() {
+//     updateConnectionStatus(false);
+//     showToast("Bluetooth disconnected!", 'warning');
+// }
+
+// function updateConnectionStatus(connected) {
+//     const statusElement = document.getElementById('connection-status');
+//     if (connected) {
+//         statusElement.textContent = "Bluetooth: Connected";
+//         statusElement.className = "status connected";
+//     } else {
+//         statusElement.textContent = "Bluetooth: Disconnected";
+//         statusElement.className = "status disconnected";
+//     }
+// }
+
+// ========== BLUETOOTH CONNECTION ==========
+async function connectBluetooth() {
+    const connectBtn = document.getElementById('connect-bluetooth');
+    const statusElement = document.getElementById('connection-status');
+    
+    try {
+        // Show loading state
+        connectBtn.disabled = true;
+        connectBtn.textContent = "Connecting...";
+        statusElement.textContent = "Bluetooth: Connecting...";
+        statusElement.className = "status connecting";
+        
+        // Simulate connection delay (2 seconds)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: ['00001101-0000-1000-8000-00805f9b34fb']
+        });
+        
+        bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        
+        bluetoothServer = await bluetoothDevice.gatt.connect();
+        
+        // Show connected state
+        updateConnectionStatus(true);
+        connectBtn.textContent = "Connected";
+        showToast("Connected to helmet!", 'success');
+        
+        bluetoothService = await bluetoothServer.getPrimaryService('00001101-0000-1000-8000-00805f9b34fb');
+        bluetoothCharacteristic = await bluetoothService.getCharacteristic('00001143-0000-1000-8000-00805f9b34fb');
+        await bluetoothCharacteristic.startNotifications();
+        bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleData);
+        
+    } catch (error) {
+        console.error("Bluetooth error:", error);
+        // Reset to disconnected state
+        connectBtn.disabled = false;
+        connectBtn.textContent = "Connect Helmet";
+        updateConnectionStatus(false);
+        showToast(`Connection failed: ${error.message}`, 'error');
+    }
+}
+
+function updateConnectionStatus(connected) {
+    const statusElement = document.getElementById('connection-status');
+    if (connected) {
+        statusElement.textContent = "Bluetooth: Connected";
+        statusElement.className = "status connected";
+    } else {
+        statusElement.textContent = "Bluetooth: Disconnected";
+        statusElement.className = "status disconnected";
+    }
+}
+
+// ========== DATA HANDLING ==========
+function handleData(event) {
+    const now = Date.now();
+    if (now - lastDataTime < DATA_UPDATE_INTERVAL) return;
+    lastDataTime = now;
+
+    const value = event.target.value;
+    const decoder = new TextDecoder('utf-8');
+    const dataString = decoder.decode(value);
+    
+    processSensorData(dataString);
+}
+
+function processSensorData(data) {
+    console.log("Received:", data);
+    
+    if (data.startsWith("GPS:")) {
+        const coords = data.replace("GPS:", "").trim().split(",");
+        if (coords.length === 2) {
+            const lat = parseFloat(coords[0]);
+            const lng = parseFloat(coords[1]);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                updateMap(lat, lng);
+            }
+        }
+    } 
+    else if (data.startsWith("ACC:")) {
+        const values = data.replace("ACC:", "").trim().split(",");
+        if (values.length >= 4) {
+            const x = parseInt(values[0]) / 1000;
+            const y = parseInt(values[1]) / 1000;
+            const z = parseInt(values[2]) / 1000;
+            const force = parseFloat(values[3]) / 1000;
+            
+            if (!isNaN(x) && !isNaN(y) && !isNaN(z) && !isNaN(force)) {
+                updateForceData(x, y, z, force);
+                determineSeverity(force);
+                
+                if (force > SEVERITY_LEVELS.mild && !emergencyActive) {
+                    triggerEmergency(force);
+                }
+            }
+        }
+    }
+}
+
+function updateMap(lat, lng) {
+    lastLocation = { lat, lng };
+    map.setView([lat, lng], 15);
+    marker.setLatLng([lat, lng]);
+    document.getElementById("coordinates").textContent = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+    document.getElementById("last-update").textContent = new Date().toLocaleTimeString();
+}
+
+function updateForceData(x, y, z, force) {
+    forceChart.data.datasets[0].data = [x, y, z, force];
+    forceChart.update();
+    
+    document.getElementById("acc-x").textContent = x.toFixed(2);
+    document.getElementById("acc-y").textContent = y.toFixed(2);
+    document.getElementById("acc-z").textContent = z.toFixed(2);
+    document.getElementById("last-force").textContent = force.toFixed(2);
+    
+    const percentage = Math.min(100, (force / SEVERITY_LEVELS.severe) * 100);
+    document.getElementById("severity-indicator").style.left = `${percentage}%`;
+}
+
+function determineSeverity(force) {
+    const severityElement = document.getElementById("severity");
+    severityElement.classList.remove("severity-mild", "severity-moderate", "severity-severe");
+    
+    if (force > SEVERITY_LEVELS.severe) {
+        severityElement.textContent = "SEVERE";
+        severityElement.classList.add("severity-severe");
+    } 
+    else if (force > SEVERITY_LEVELS.moderate) {
+        severityElement.textContent = "MODERATE";
+        severityElement.classList.add("severity-moderate");
+    }
+    else if (force > SEVERITY_LEVELS.mild) {
+        severityElement.textContent = "MILD";
+        severityElement.classList.add("severity-mild");
+    }
+    else {
+        severityElement.textContent = "NONE";
+    }
+}
+
+// ========== EMERGENCY FUNCTIONS ==========
+function triggerEmergency(force) {
+    if (emergencyActive) return;
+    emergencyActive = true;
+    
+    document.getElementById('emergency-screen').style.display = 'flex';
+    countdown = 15;
+    document.getElementById('countdown').textContent = `Calling emergency in: ${countdown}s...`;
+    
+    countdownInterval = setInterval(() => {
+        countdown--;
+        document.getElementById('countdown').textContent = `Calling emergency in: ${countdown}s...`;
+        
+        if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            callEmergency();
+        }
+    }, 1000);
+    
+    if (force > SEVERITY_LEVELS.severe) {
+        document.body.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+        setTimeout(() => document.body.style.backgroundColor = "", 500);
+    }
+}
+
+function cancelEmergency() {
+    clearInterval(countdownInterval);
+    document.getElementById('emergency-screen').style.display = 'none';
+    emergencyActive = false;
+    showToast("Emergency alert cancelled", 'success');
+}
+
+function callEmergencyNow() {
+    clearInterval(countdownInterval);
+    callEmergency();
+}
+
+function callEmergency() {
+    window.open("tel:911");
+    
+    const message = `EMERGENCY: Helmet user detected a crash!\n` +
+                   `Severity: ${document.getElementById('severity').textContent}\n` +
+                   `Location: https://www.google.com/maps?q=${lastLocation.lat},${lastLocation.lng}`;
+    
+    EMERGENCY_CONTACTS.forEach(contact => {
+        window.open(`sms:${contact}&body=${encodeURIComponent(message)}`);
+    });
+    
+    setTimeout(() => {
+        document.getElementById('emergency-screen').style.display = 'none';
+        emergencyActive = false;
+    }, 3000);
+}
+
+function getRandomNumber() {
+    return parseFloat((Math.random() * (28 - 21) + 21).toFixed(1));
+}
+
+function getAxisRandomNumber() {
+    return parseFloat((Math.random() * (13 - 8) + 8).toFixed(1));
+}
+// ========== TESTING FUNCTION ==========
+function simulateAccident() {
+    if (emergencyActive) return;
+    
+    updateMap(22.31641182812434, 87.32150482346215);
+    const testForce = getRandomNumber();
+    updateForceData(getAxisRandomNumber(),getAxisRandomNumber(),getAxisRandomNumber(), testForce);
+    determineSeverity(testForce);
+    triggerEmergency(testForce);
+}
+
+// ========== UTILITY FUNCTION ==========
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
+}
+
+function clickButtonAtInterval(buttonId, interval) {
+    const button = document.getElementById(buttonId);
+    if (!button) {
+        console.error(`Button with ID "${buttonId}" not found.`);
+        return;
+    }
+
+    setInterval(() => {
+        button.click();
+    }, interval);
+}
+
+// Example usage: Click the button with ID "test-alert" every 5 seconds
+//clickButtonAtInterval('test-alert', 5000);
+
+function callFunctionForInterval(func, interval, duration) {
+    const intervalId = setInterval(() => {
+        func();
+    }, interval);
+
+    setTimeout(() => {
+        clearInterval(intervalId);
+    }, duration);
+}
+
+// Example usage: Call `simulateAccident` every 2 seconds for 10 seconds
+//callFunctionForInterval(clickButtonAtInterval('test-alert', 1000), 2000, 2000);
+
+// ========== BUZZER DETECTION ==========
+let audioContext;
+let analyser;
+let isBuzzerDetected = false;
+const BUZZER_FREQUENCY = 1000;  // Change to your buzzer's frequency (Hz)
+const DETECTION_THRESHOLD = 0.5; // Sensitivity (0-1)
+
+// UI Elements
+const buzzerStateElement = document.getElementById('buzzer-state');
+const debugFrequencyElement = document.getElementById('debug-frequency');
+const enableMicButton = document.getElementById('enable-mic');
+
+// Initialize buzzer detection (call this on page load)
+function initBuzzerDetection() {
+    enableMicButton.addEventListener('click', startBuzzerDetection);
+    startBuzzerDetection(); // Auto-start (optional)
+}
+
+async function startBuzzerDetection() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        const microphone = audioContext.createMediaStreamSource(stream);
+        microphone.connect(analyser);
+
+        buzzerStateElement.textContent = "LISTENING...";
+        buzzerStateElement.style.color = "green";
+        enableMicButton.style.display = "none"; // Hide after permission
+
+        detectBuzzer();
+    } catch (error) {
+        console.error("Microphone error:", error);
+        buzzerStateElement.textContent = "ERROR (see console)";
+        buzzerStateElement.style.color = "red";
+    }
+}
+
+function detectBuzzer() {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const checkSound = () => {
+        analyser.getByteFrequencyData(dataArray);
+
+        // Debug: Find the dominant frequency
+        const maxIndex = dataArray.indexOf(Math.max(...dataArray));
+        const dominantFreq = maxIndex * (audioContext.sampleRate / analyser.fftSize);
+        debugFrequencyElement.textContent = `${Math.round(dominantFreq)} Hz`;
+
+        // Check if the buzzer's frequency is loud enough
+        const buzzerBin = Math.floor((BUZZER_FREQUENCY / audioContext.sampleRate) * analyser.fftSize);
+        const buzzerIntensity = dataArray[buzzerBin] / 255; // Normalized (0-1)
+
+        if (buzzerIntensity > DETECTION_THRESHOLD && !isBuzzerDetected) {
+            isBuzzerDetected = true;
+            buzzerStateElement.textContent = "DETECTED!";
+            buzzerStateElement.style.color = "orange";
+            simulateAccident(); // Trigger your emergency function
+
+            // Reset after 3 seconds
+            setTimeout(() => {
+                isBuzzerDetected = false;
+                buzzerStateElement.textContent = "LISTENING...";
+                buzzerStateElement.style.color = "green";
+            }, 3000);
+        }
+
+        requestAnimationFrame(checkSound);
+    };
+
+    checkSound();
+}
+
+// Call this on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initBuzzerDetection();
+    // Your other init code...
+});
