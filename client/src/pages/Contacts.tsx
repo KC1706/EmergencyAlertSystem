@@ -146,8 +146,20 @@ export default function Contacts({ lastLocation }: ContactsProps) {
               <div>
                 <p className="font-medium">{contact.name}</p>
                 <p className="text-gray-600">{contact.phone}</p>
-                <div className="text-xs text-gray-500 flex items-center mt-1">
-                  <span className="material-icons text-xs mr-1">message</span> Will receive SMS alerts
+                {contact.email && (
+                  <p className="text-gray-600">{contact.email}</p>
+                )}
+                <div className="flex flex-col mt-1">
+                  {contact.sendSms && (
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <span className="material-icons text-xs mr-1">message</span> Will receive SMS alerts
+                    </div>
+                  )}
+                  {contact.sendEmail && (
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <span className="material-icons text-xs mr-1">email</span> Will receive Email alerts
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex space-x-2">
@@ -171,7 +183,7 @@ export default function Contacts({ lastLocation }: ContactsProps) {
       
       <div className="bg-white rounded-lg shadow-md p-4">
         <h3 className="text-lg font-semibold mb-3 flex items-center">
-          <span className="material-icons mr-2 text-blue-500">sms</span>
+          <span className="material-icons mr-2 text-blue-500">notification_important</span>
           Emergency Message Preview
         </h3>
         <div className="bg-gray-50 p-4 rounded-md border border-gray-300">
@@ -182,6 +194,25 @@ export default function Contacts({ lastLocation }: ContactsProps) {
             <p>Location: <a href={`https://www.google.com/maps?q=${lastLocation.lat},${lastLocation.lng}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
               https://www.google.com/maps?q={lastLocation.lat.toFixed(5)},{lastLocation.lng.toFixed(5)}
             </a></p>
+            <p>Time: {new Date().toLocaleString()}</p>
+          </div>
+          
+          <div className="mt-4">
+            <p className="font-medium mb-2">Delivery methods:</p>
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-sm">
+                <span className="material-icons text-blue-500 mr-1" style={{ fontSize: '1rem' }}>message</span>
+                <span>SMS message</span>
+              </div>
+              <div className="flex items-center bg-green-50 border border-green-200 rounded-full px-3 py-1 text-sm">
+                <span className="material-icons text-green-500 mr-1" style={{ fontSize: '1rem' }}>email</span>
+                <span>Email message</span>
+              </div>
+              <div className="flex items-center bg-yellow-50 border border-yellow-200 rounded-full px-3 py-1 text-sm">
+                <span className="material-icons text-yellow-500 mr-1" style={{ fontSize: '1rem' }}>share</span>
+                <span>Web Share</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

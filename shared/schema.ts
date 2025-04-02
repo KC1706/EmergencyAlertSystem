@@ -22,14 +22,19 @@ export const contacts = pgTable("emergency_contacts", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
+  email: text("email"),
   sendSms: boolean("send_sms").default(true),
+  sendEmail: boolean("send_email").default(false),
   userId: integer("user_id"), // Optional foreign key if implementing user system
 });
 
 export const insertContactSchema = createInsertSchema(contacts).pick({
   name: true,
   phone: true,
+  email: true,
   sendSms: true,
+  sendEmail: true,
+  userId: true,
 });
 
 export type InsertContact = z.infer<typeof insertContactSchema>;

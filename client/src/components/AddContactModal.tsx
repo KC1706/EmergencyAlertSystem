@@ -18,7 +18,9 @@ const contactSchema = z.object({
   phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, { 
     message: "Please enter a valid phone number in international format (e.g. +1234567890)" 
   }),
-  sendSms: z.boolean()
+  email: z.string().email({ message: "Please enter a valid email address" }).optional().or(z.literal('')),
+  sendSms: z.boolean(),
+  sendEmail: z.boolean()
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -35,7 +37,9 @@ export default function AddContactModal({
     defaultValues: {
       name: '',
       phone: '',
-      sendSms: true
+      email: '',
+      sendSms: true,
+      sendEmail: false
     }
   });
 
@@ -45,20 +49,33 @@ export default function AddContactModal({
       reset({
         name: contact.name,
         phone: contact.phone,
-        sendSms: contact.sendSms
+        email: contact.email || '',
+        sendSms: contact.sendSms === null ? true : contact.sendSms,
+        sendEmail: contact.sendEmail === null ? false : contact.sendEmail
       });
     } else {
       reset({
         name: '',
         phone: '',
-        sendSms: true
+        email: '',
+        sendSms: true,
+        sendEmail: false
       });
     }
   }, [contact, reset]);
 
   // Handle form submission
   const handleFormSubmit = (data: ContactFormData) => {
-    onSubmit(data);
+    // Include userId as null to match the InsertContact type
+    // and handle email as null if it's empty
+    onSubmit({
+      name: data.name,
+      phone: data.phone,
+      email: data.email && data.email.trim() !== '' ? data.email : null,
+      sendSms: data.sendSms,
+      sendEmail: data.sendEmail,
+      userId: null
+    });
   };
 
   if (!isOpen) return null;
@@ -104,7 +121,22 @@ export default function AddContactModal({
             )}
           </div>
           
-          <div className="mb-6">
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2" htmlFor="contact-email">Email Address</label>
+            <input 
+              type="email" 
+              id="contact-email" 
+              className={`border rounded p-2 w-full ${errors.email ? 'border-red-500' : ''}`}
+              placeholder="johndoe@example.com" 
+              {...register('email')}
+            />
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">Used for emergency email notifications</p>
+          </div>
+          
+          <div className="mb-2">
             <label className="flex items-center">
               <input 
                 type="checkbox" 
@@ -112,6 +144,17 @@ export default function AddContactModal({
                 {...register('sendSms')}
               />
               <span>Send SMS in case of emergency</span>
+            </label>
+          </div>
+          
+          <div className="mb-6">
+            <label className="flex items-center">
+              <input 
+                type="checkbox" 
+                className="mr-2" 
+                {...register('sendEmail')}
+              />
+              <span>Send Email in case of emergency</span>
             </label>
           </div>
           

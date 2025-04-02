@@ -70,13 +70,19 @@ export class MemStorage implements IStorage {
     this.createContact({
       name: "John Doe",
       phone: "+12345678901",
-      sendSms: true
+      email: "john.doe@example.com",
+      sendSms: true,
+      sendEmail: false,
+      userId: null
     });
     
     this.createContact({
       name: "Sarah Smith",
       phone: "+19876543210",
-      sendSms: true
+      email: "sarah.smith@example.com",
+      sendSms: true,
+      sendEmail: false,
+      userId: null
     });
   }
 
@@ -109,7 +115,15 @@ export class MemStorage implements IStorage {
   
   async createContact(contact: InsertContact): Promise<Contact> {
     const id = this.currentContactId++;
-    const newContact: Contact = { ...contact, id };
+    // Ensure all required fields are present with defaults
+    const newContact: Contact = { 
+      ...contact, 
+      id,
+      email: contact.email || null,
+      sendSms: contact.sendSms === undefined ? true : contact.sendSms,
+      sendEmail: contact.sendEmail === undefined ? false : contact.sendEmail,
+      userId: contact.userId === undefined ? null : contact.userId
+    };
     this.contactsStore.set(id, newContact);
     return newContact;
   }

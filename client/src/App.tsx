@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Route, Switch } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import Settings from "./pages/Settings";
+import EmergencyShare from "./pages/EmergencyShare";
+import NotFound from "./pages/not-found";
 import EmergencyScreen from "./components/EmergencyScreen";
 import { useToast } from "./hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'contacts' | 'settings'>('dashboard');
@@ -76,77 +80,95 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="bg-gray-100 text-gray-800 font-sans min-h-screen">
-        <div className="container mx-auto px-4 py-6 max-w-6xl">
-          <header className="mb-6">
-            <h1 className="text-3xl font-bold text-center text-gray-800">Smart Helmet Accident Detection</h1>
-            
-            {/* Tab Navigation */}
-            <div className="flex justify-center mt-6 border-b border-gray-200">
-              <button 
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-4 py-2 border-b-2 ${activeTab === 'dashboard' ? 'border-blue-500 text-blue-500 font-medium' : 'border-transparent hover:border-gray-300'}`}
-              >
-                Dashboard
-              </button>
-              <button 
-                onClick={() => setActiveTab('contacts')}
-                className={`px-4 py-2 border-b-2 ${activeTab === 'contacts' ? 'border-blue-500 text-blue-500 font-medium' : 'border-transparent hover:border-gray-300'}`}
-              >
-                Emergency Contacts
-              </button>
-              <button 
-                onClick={() => setActiveTab('settings')}
-                className={`px-4 py-2 border-b-2 ${activeTab === 'settings' ? 'border-blue-500 text-blue-500 font-medium' : 'border-transparent hover:border-gray-300'}`}
-              >
-                Settings
-              </button>
-            </div>
-          </header>
+        <Switch>
+          {/* Emergency share page route */}
+          <Route path="/emergency-share">
+            <EmergencyShare />
+          </Route>
           
-          {/* Connection Status */}
-          <div className={`mb-4 px-4 py-2 rounded-md font-semibold text-center
-            ${isConnecting ? 'bg-yellow-500 text-white' : isConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-            Bluetooth: {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex gap-4 mb-6 justify-center">
-            <button 
-              onClick={connectBluetooth}
-              disabled={isConnecting || isConnected}
-              className={`bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center
-                ${(isConnecting || isConnected) ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
-              <span className="material-icons mr-1">bluetooth</span> 
-              {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Connect Helmet'}
-            </button>
-            <button 
-              onClick={simulateAccident}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded flex items-center"
-            >
-              <span className="material-icons mr-1">warning</span> Simulate Accident
-            </button>
-          </div>
+          {/* Main app route */}
+          <Route path="/">
+            <div className="container mx-auto px-4 py-6 max-w-6xl">
+              <header className="mb-6">
+                <h1 className="text-3xl font-bold text-center text-gray-800">Smart Helmet Accident Detection</h1>
+                
+                {/* Tab Navigation */}
+                <div className="flex justify-center mt-6 border-b border-gray-200">
+                  <button 
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`px-4 py-2 border-b-2 ${activeTab === 'dashboard' ? 'border-blue-500 text-blue-500 font-medium' : 'border-transparent hover:border-gray-300'}`}
+                  >
+                    Dashboard
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('contacts')}
+                    className={`px-4 py-2 border-b-2 ${activeTab === 'contacts' ? 'border-blue-500 text-blue-500 font-medium' : 'border-transparent hover:border-gray-300'}`}
+                  >
+                    Emergency Contacts
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('settings')}
+                    className={`px-4 py-2 border-b-2 ${activeTab === 'settings' ? 'border-blue-500 text-blue-500 font-medium' : 'border-transparent hover:border-gray-300'}`}
+                  >
+                    Settings
+                  </button>
+                </div>
+              </header>
+              
+              {/* Connection Status */}
+              <div className={`mb-4 px-4 py-2 rounded-md font-semibold text-center
+                ${isConnecting ? 'bg-yellow-500 text-white' : isConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                Bluetooth: {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-4 mb-6 justify-center">
+                <button 
+                  onClick={connectBluetooth}
+                  disabled={isConnecting || isConnected}
+                  className={`bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center
+                    ${(isConnecting || isConnected) ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  <span className="material-icons mr-1">bluetooth</span> 
+                  {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Connect Helmet'}
+                </button>
+                <button 
+                  onClick={simulateAccident}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded flex items-center"
+                >
+                  <span className="material-icons mr-1">warning</span> Simulate Accident
+                </button>
+              </div>
 
-          {/* Content Area */}
-          {activeTab === 'dashboard' && <Dashboard severity={severity} lastLocation={lastLocation} />}
-          {activeTab === 'contacts' && <Contacts lastLocation={lastLocation} />}
-          {activeTab === 'settings' && <Settings onCountdownChange={setCountdown} />}
-        </div>
+              {/* Content Area */}
+              {activeTab === 'dashboard' && <Dashboard severity={severity} lastLocation={lastLocation} />}
+              {activeTab === 'contacts' && <Contacts lastLocation={lastLocation} />}
+              {activeTab === 'settings' && <Settings onCountdownChange={setCountdown} />}
+            </div>
+            
+            {/* Emergency Screen */}
+            {emergencyActive && (
+              <EmergencyScreen 
+                countdown={countdown} 
+                severity={severity}
+                location={lastLocation}
+                onCancel={() => setEmergencyActive(false)}
+                onCall={() => {
+                  // Make emergency call
+                  setEmergencyActive(false);
+                }}
+              />
+            )}
+          </Route>
+          
+          {/* 404 Not Found route - this must be the last route */}
+          <Route>
+            <NotFound />
+          </Route>
+        </Switch>
         
-        {/* Emergency Screen */}
-        {emergencyActive && (
-          <EmergencyScreen 
-            countdown={countdown} 
-            severity={severity}
-            location={lastLocation}
-            onCancel={() => setEmergencyActive(false)}
-            onCall={() => {
-              // Make emergency call
-              setEmergencyActive(false);
-            }}
-          />
-        )}
+        {/* Toast notifications component */}
+        <Toaster />
       </div>
     </QueryClientProvider>
   );
