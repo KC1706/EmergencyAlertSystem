@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertContactSchema } from "@shared/schema";
-import { sendSMS, isValidIndianPhoneNumber } from "./services/fast2sms";
+import { sendSMS as sendFast2SMS, isValidIndianPhoneNumber } from "./services/fast2sms";
+import { sendSMS as sendTwilioSMS } from "./services/twilio";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // === CONTACT ROUTES ===
@@ -178,8 +179,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send emergency SMS via Fast2SMS
-  app.post('/api/emergency/sms', async (req: Request, res: Response) => {
+  // Send emergency SMS via Fast2SMS (for Indian numbers)
+  app.post('/api/emergency/sms/fast2sms', async (req: Request, res: Response) => {
     try {
       const { phoneNumbers, message } = req.body;
       
@@ -204,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Send SMS using Fast2SMS
-      const result = await sendSMS(validPhoneNumbers, message);
+      const result = await sendFast2SMS(validPhoneNumbers, message);
       
       if (result.success) {
         res.json({
@@ -219,6 +220,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Failed to send SMS",
           error: result.error,
           invalidNumbers: invalidPhoneNumbers.length > 0 ? invalidPhoneNumbers : undefined
+        });
+      }
+    } catch (error) {
+      console.error('Emergency SMS error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to send SMS",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Send emergency SMS via Twilio (for international numbers)
+  app.post('/api/emergency/sms/twilio', async (req: Request, res: Response) => {
+    try {
+      const { phoneNumbers, message } = req.body;
+      
+      // Validate required fields
+      if (!phoneNumbers || !Array.isArray(phoneNumbers) || !message) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Missing required data. Please provide phoneNumbers array and message."
+        });
+      }
+      
+      // Send SMS using Twilio
+      const result = await sendTwilioSMS(phoneNumbers, message);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: "SMS sent successfully via Twilio",
+          sentCount: result.sentCount,
+          failedCount: result.failedCount,
+          messages: result.messages
+        });
+      } else {
+        res.status(500).json({ 
+          success: false,
+          message: "Failed to send SMS via Twilio",
+          errors: result.errors
+        });
+      }
+    } catch (error) {
+      console.error('Twilio SMS error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to send SMS via Twilio",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // General SMS endpoint that selects the appropriate service
+  app.post('/api/emergency/sms', async (req: Request, res: Response) => {
+    try {
+      const { phoneNumbers, message } = req.body;
+      
+      // Validate required fields
+      if (!phoneNumbers || !Array.isArray(phoneNumbers) || !message) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Missing required data. Please provide phoneNumbers array and message."
+        });
+      }
+      
+      // Separate Indian and International numbers
+      const indianNumbers = phoneNumbers.filter(isValidIndianPhoneNumber);
+      const internationalNumbers = phoneNumbers.filter(num => !isValidIndianPhoneNumber(num));
+      
+      const results = {
+        success: false,
+        sentCount: 0,
+        failedCount: 0,
+        indianResults: null as any,
+        internationalResults: null as any
+      };
+      
+      // Send Indian numbers via Fast2SMS if available
+      if (indianNumbers.length > 0) {
+        try {
+          const fast2smsResult = await sendFast2SMS(indianNumbers, message);
+          results.indianResults = fast2smsResult;
+          
+          if (fast2smsResult.success) {
+            results.sentCount += fast2smsResult.sentCount || 0;
+          } else {
+            results.failedCount += indianNumbers.length;
+          }
+        } catch (error) {
+          console.error('Fast2SMS error:', error);
+          results.failedCount += indianNumbers.length;
+          results.indianResults = { 
+            success: false, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          };
+        }
+      }
+      
+      // Check if there are any international numbers
+      if (internationalNumbers.length > 0) {
+        // Check if Twilio secrets are configured
+        if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+          console.warn('Twilio not configured, but international numbers were provided');
+          results.failedCount += internationalNumbers.length;
+          results.internationalResults = {
+            success: false,
+            message: "Twilio credentials not configured. Only Indian numbers are supported.",
+            failedCount: internationalNumbers.length,
+            invalidNumbers: internationalNumbers
+          };
+        } else {
+          // Send international numbers via Twilio
+          try {
+            const twilioResult = await sendTwilioSMS(internationalNumbers, message);
+            results.internationalResults = twilioResult;
+            
+            if (twilioResult.success) {
+              results.sentCount += twilioResult.sentCount || 0;
+            }
+            results.failedCount += twilioResult.failedCount || 0;
+          } catch (error) {
+            console.error('Twilio error:', error);
+            results.failedCount += internationalNumbers.length;
+            results.internationalResults = { 
+              success: false, 
+              error: error instanceof Error ? error.message : "Unknown error" 
+            };
+          }
+        }
+      }
+      
+      results.success = results.sentCount > 0;
+      
+      // Return appropriate response based on results
+      if (results.success) {
+        res.json({
+          success: true,
+          message: "SMS sent successfully",
+          sentCount: results.sentCount,
+          failedCount: results.failedCount,
+          indianResults: results.indianResults,
+          internationalResults: results.internationalResults
+        });
+      } else {
+        res.status(500).json({ 
+          success: false,
+          message: "Failed to send SMS to any recipients",
+          indianResults: results.indianResults,
+          internationalResults: results.internationalResults
         });
       }
     } catch (error) {

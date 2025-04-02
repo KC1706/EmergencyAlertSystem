@@ -115,17 +115,18 @@ export async function sendEmergencyNotifications(
     let failureCount = 0;
     const errors: string[] = [];
 
-    // First try Fast2SMS for direct SMS delivery
+    // First try direct SMS delivery via our API
     const phoneNumbers = contacts
       .filter(contact => contact.phone)
       .map(contact => contact.phone!);
     
     if (phoneNumbers.length > 0) {
       try {
-        const smsResult = await sendFast2SMS(phoneNumbers, emergencyMessage);
+        // Use the combined SMS endpoint that handles routing to the best provider
+        const smsResult = await sendSMS(phoneNumbers, emergencyMessage);
         
         if (smsResult.success && smsResult.sentCount) {
-          console.log('Successfully sent SMS via Fast2SMS to', smsResult.sentCount, 'contacts');
+          console.log('Successfully sent SMS to', smsResult.sentCount, 'contacts');
           successCount += smsResult.sentCount;
           
           // Log successful notifications
@@ -134,13 +135,13 @@ export async function sendEmergencyNotifications(
               contactId: contact.id,
               message: emergencyMessage,
               success: true,
-              errorMessage: 'Sent via Fast2SMS'
+              errorMessage: 'Sent via SMS API'
             });
           }
         } else {
-          console.error('Fast2SMS sending failed:', smsResult.message || smsResult.error);
+          console.error('SMS sending failed:', smsResult.message || smsResult.error);
           
-          // Only fallback to browser-based methods if Fast2SMS fails
+          // Only fallback to browser-based methods if direct SMS fails
           await processBrowserBasedNotifications(
             contacts, 
             emergencyMessage, 
@@ -151,7 +152,7 @@ export async function sendEmergencyNotifications(
           );
         }
       } catch (error) {
-        console.error('Failed to send via Fast2SMS:', error);
+        console.error('Failed to send via SMS API:', error);
         
         // Fallback to browser-based methods
         await processBrowserBasedNotifications(
@@ -267,7 +268,7 @@ export function generateShareableLink(severity: string, location: { lat: number;
  */
 export async function sendFast2SMS(phoneNumbers: string[], message: string): Promise<SMSResponse> {
   try {
-    const response = await apiRequest('POST', '/api/emergency/sms', {
+    const response = await apiRequest('POST', '/api/emergency/sms/fast2sms', {
       phoneNumbers,
       message
     });
@@ -279,6 +280,62 @@ export async function sendFast2SMS(phoneNumbers: string[], message: string): Pro
     return {
       success: false,
       message: 'Failed to send SMS via Fast2SMS',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Send SMS directly using Twilio API
+ * @param phoneNumbers - Array of phone numbers to send SMS to (international format)
+ * @param message - Emergency message to send
+ * @returns Promise with response from the server
+ */
+export async function sendTwilioSMS(phoneNumbers: string[], message: string): Promise<SMSResponse> {
+  try {
+    const response = await apiRequest('POST', '/api/emergency/sms/twilio', {
+      phoneNumbers,
+      message
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Failed to send SMS via Twilio API:', error);
+    return {
+      success: false,
+      message: 'Failed to send SMS via Twilio',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Send SMS using the best available method
+ * This function automatically chooses the appropriate SMS service based on the phone numbers.
+ * For Indian numbers, it uses Fast2SMS.
+ * 
+ * NOTE: Currently only Indian phone numbers are fully supported through Fast2SMS.
+ * International numbers require Twilio credentials to be configured.
+ * 
+ * @param phoneNumbers - Array of phone numbers to send SMS to
+ * @param message - Emergency message to send
+ * @returns Promise with response from the server
+ */
+export async function sendSMS(phoneNumbers: string[], message: string): Promise<SMSResponse> {
+  try {
+    const response = await apiRequest('POST', '/api/emergency/sms', {
+      phoneNumbers,
+      message
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Failed to send SMS:', error);
+    return {
+      success: false,
+      message: 'Failed to send SMS',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
