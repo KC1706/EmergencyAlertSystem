@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertContactSchema } from "@shared/schema";
+import { sendSMS, isValidIndianPhoneNumber } from "./services/fast2sms";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // === CONTACT ROUTES ===
@@ -172,6 +173,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false,
         message: "Failed to log notification",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Send emergency SMS via Fast2SMS
+  app.post('/api/emergency/sms', async (req: Request, res: Response) => {
+    try {
+      const { phoneNumbers, message } = req.body;
+      
+      // Validate required fields
+      if (!phoneNumbers || !Array.isArray(phoneNumbers) || !message) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Missing required data. Please provide phoneNumbers array and message."
+        });
+      }
+      
+      // Filter valid Indian phone numbers only
+      const validPhoneNumbers = phoneNumbers.filter(isValidIndianPhoneNumber);
+      const invalidPhoneNumbers = phoneNumbers.filter(num => !isValidIndianPhoneNumber(num));
+      
+      if (validPhoneNumbers.length === 0) {
+        return res.status(400).json({ 
+          success: false,
+          message: "No valid Indian phone numbers provided. Fast2SMS only supports Indian numbers.",
+          invalidNumbers: invalidPhoneNumbers
+        });
+      }
+      
+      // Send SMS using Fast2SMS
+      const result = await sendSMS(validPhoneNumbers, message);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: "SMS sent successfully",
+          sentCount: result.sentCount,
+          invalidNumbers: invalidPhoneNumbers.length > 0 ? invalidPhoneNumbers : undefined
+        });
+      } else {
+        res.status(500).json({ 
+          success: false,
+          message: "Failed to send SMS",
+          error: result.error,
+          invalidNumbers: invalidPhoneNumbers.length > 0 ? invalidPhoneNumbers : undefined
+        });
+      }
+    } catch (error) {
+      console.error('Emergency SMS error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to send SMS",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
