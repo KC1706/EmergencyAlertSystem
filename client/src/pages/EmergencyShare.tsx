@@ -116,7 +116,7 @@ Time: ${emergencyInfo.time ? new Date(emergencyInfo.time).toLocaleString() : new
             </pre>
           </div>
           
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+{/*           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
             <p className="text-sm font-medium text-yellow-800 flex items-center mb-1">
               <span className="text-yellow-500 mr-1">ⓘ</span>
               Important Note About Sending:
@@ -127,7 +127,7 @@ Time: ${emergencyInfo.time ? new Date(emergencyInfo.time).toLocaleString() : new
               <li>This approach doesn't require paid services but needs manual confirmation</li>
               <li>Try multiple methods for the best chance of reaching someone</li>
             </ul>
-          </div>
+          </div> */}
           
           <Separator className="my-6" />
           
