@@ -215,9 +215,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           invalidNumbers: invalidPhoneNumbers.length > 0 ? invalidPhoneNumbers : undefined
         });
       } else {
-        res.status(500).json({ 
+        // Check for specific Fast2SMS error conditions
+        let statusCode = 500;
+        let errorMessage = "Failed to send SMS";
+        
+        // If this is a Fast2SMS account setup requirement, not a true error
+        if (result.message?.includes('transaction of 100 INR') || result.error?.includes('transaction of 100 INR')) {
+          statusCode = 403; // Forbidden - the API key is valid but account setup is incomplete
+          errorMessage = "Fast2SMS account setup required: Please complete the initial transaction to activate API services";
+        } else if (result.message?.includes('Invalid Authentication') || result.error?.includes('Invalid Authentication')) {
+          statusCode = 401; // Unauthorized - the API key is invalid
+          errorMessage = "Fast2SMS API key is invalid or expired";
+        }
+        
+        res.status(statusCode).json({ 
           success: false,
-          message: "Failed to send SMS",
+          message: errorMessage,
           error: result.error,
           invalidNumbers: invalidPhoneNumbers.length > 0 ? invalidPhoneNumbers : undefined
         });
@@ -308,6 +321,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             results.sentCount += fast2smsResult.sentCount || 0;
           } else {
             results.failedCount += indianNumbers.length;
+            
+            // Check for specific Fast2SMS account setup requirement
+            if (fast2smsResult.message?.includes('transaction of 100 INR') || 
+                fast2smsResult.error?.includes('transaction of 100 INR')) {
+              fast2smsResult.message = "Fast2SMS account setup required: Please complete the initial transaction to activate API services. This is not an error with the system, but an account configuration requirement.";
+            }
           }
         } catch (error) {
           console.error('Fast2SMS error:', error);
@@ -365,9 +384,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           internationalResults: results.internationalResults
         });
       } else {
-        res.status(500).json({ 
+        // Provide a more descriptive message based on what failed
+        let statusCode = 500;
+        let errorMessage = "Failed to send SMS to any recipients";
+        
+        // Check if this is an account setup issue with Fast2SMS
+        if (results.indianResults && 
+            (results.indianResults.message?.includes('transaction of 100 INR') || 
+             results.indianResults.error?.includes('transaction of 100 INR'))) {
+          statusCode = 403; // Not a true error, but a configuration requirement
+          errorMessage = "Fast2SMS account setup required: The API key is valid but requires initial transaction to activate. SMS will be sent after account setup is complete.";
+        } 
+        // Check if this is an authentication issue with Fast2SMS
+        else if (results.indianResults && 
+                (results.indianResults.message?.includes('Invalid Authentication') || 
+                 results.indianResults.error?.includes('Invalid Authentication'))) {
+          statusCode = 401;
+          errorMessage = "Fast2SMS authentication failed: Please check the API key.";
+        }
+        // If there were no Indian numbers but international numbers failed due to missing Twilio config
+        else if (!indianNumbers.length && internationalNumbers.length && 
+                results.internationalResults && 
+                results.internationalResults.message?.includes('Twilio credentials not configured')) {
+          statusCode = 503; // Service unavailable
+          errorMessage = "Twilio not configured: Only Indian numbers are currently supported.";
+        }
+        
+        res.status(statusCode).json({ 
           success: false,
-          message: "Failed to send SMS to any recipients",
+          message: errorMessage,
           indianResults: results.indianResults,
           internationalResults: results.internationalResults
         });

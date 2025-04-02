@@ -52,24 +52,33 @@ export async function sendSMS(phoneNumbers: string[], message: string): Promise<
   try {
     // Fast2SMS API V2 endpoint
     const apiEndpoint = 'https://www.fast2sms.com/dev/bulkV2';
-    const formData = new URLSearchParams();
-    formData.append('authorization', process.env.FAST2SMS_API_KEY);
-    formData.append('route', 'v3'); // Use promotional route since Quick route may need DLT approval
-    formData.append('sender_id', 'TXTIND');
-    formData.append('message', trimmedMessage);
-    formData.append('language', 'english');
-    formData.append('flash', '0');
-    formData.append('numbers', validPhoneNumbers.join(','));
-
+    
+    // Log API key (partial - only first few characters for security)
+    const apiKeyPartial = process.env.FAST2SMS_API_KEY?.substring(0, 5) + '...' + process.env.FAST2SMS_API_KEY?.substring(process.env.FAST2SMS_API_KEY.length - 5);
+    console.log('Using Fast2SMS API key (partial):', apiKeyPartial);
+    
+    // Try direct API call according to Fast2SMS documentation
+    // Use 'dlt' or 'v3' route since 'q' (quick) route requires a paid account
+    const params = {
+      authorization: process.env.FAST2SMS_API_KEY,
+      message: trimmedMessage,
+      language: 'english',
+      route: 'v3', // promotional route which has fewer restrictions
+      numbers: validPhoneNumbers.join(','),
+      flash: '0',
+      sender_id: 'FSTSMS' // Default sender ID
+    };
+    
+    const queryString = new URLSearchParams(params).toString();
+    const requestUrl = `${apiEndpoint}?${queryString}`;
+    
     console.log('Fast2SMS attempting API request to:', apiEndpoint);
     
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
+    const response = await fetch(requestUrl, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
         'Cache-Control': 'no-cache'
-      },
-      body: formData.toString()
+      }
     });
 
     const responseText = await response.text();
@@ -89,6 +98,7 @@ export async function sendSMS(phoneNumbers: string[], message: string): Promise<
     
     console.log('Fast2SMS API response data:', data);
     
+    // Handle successful response
     if (data.return === true) {
       return {
         success: true,
@@ -96,11 +106,27 @@ export async function sendSMS(phoneNumbers: string[], message: string): Promise<
         sentCount: validPhoneNumbers.length,
         requestId: data.request_id
       };
-    } else {
+    } 
+    // Handle common Fast2SMS error scenarios with descriptive messages
+    else {
       console.error('Fast2SMS API returned error:', data);
+      
+      let errorMessage = data.message || 'Failed to send SMS';
+      
+      // Provide more helpful messages for common error codes
+      if (data.status_code === 999) {
+        errorMessage = 'Account setup required: Fast2SMS requires an initial transaction of 100 INR or more to activate API services.';
+      } else if (data.status_code === 412) {
+        errorMessage = 'Authentication failed: The Fast2SMS API key appears to be invalid or expired.';
+      } else if (data.status_code === 402) {
+        errorMessage = 'Insufficient balance: Please recharge your Fast2SMS account.';
+      } else if (data.status_code === 501) {
+        errorMessage = 'Message content error: The SMS message may contain blacklisted keywords or be too long.';
+      }
+      
       return {
         success: false,
-        message: data.message || 'Failed to send SMS',
+        message: errorMessage,
         error: JSON.stringify(data)
       };
     }

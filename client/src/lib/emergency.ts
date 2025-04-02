@@ -286,12 +286,32 @@ export function generateShareableLink(severity: string, location: { lat: number;
  */
 export async function sendFast2SMS(phoneNumbers: string[], message: string): Promise<SMSResponse> {
   try {
+    console.log('Sending SMS via Fast2SMS to:', phoneNumbers);
+    
     const response = await apiRequest('POST', '/api/emergency/sms/fast2sms', {
       phoneNumbers,
       message
     });
     
     const data = await response.json();
+    
+    // Add diagnostic information if there's an error for better user feedback
+    if (!data.success && data.error) {
+      try {
+        // Try to parse the error if it's a JSON string
+        const errorDetails = JSON.parse(data.error);
+        console.warn('Fast2SMS error details:', errorDetails);
+        
+        // Additional context for common error codes
+        if (errorDetails.status_code === 999) {
+          console.info('Fast2SMS account needs setup: This is a new account that requires an initial transaction.');
+        }
+      } catch (e) {
+        // If error is not a JSON string, just log it
+        console.warn('Fast2SMS error (not JSON):', data.error);
+      }
+    }
+    
     return data;
   } catch (error) {
     console.error('Failed to send SMS via Fast2SMS API:', error);
@@ -331,7 +351,7 @@ export async function sendTwilioSMS(phoneNumbers: string[], message: string): Pr
 /**
  * Send SMS using the best available method
  * This function automatically chooses the appropriate SMS service based on the phone numbers.
- * For Indian numbers, it uses Fast2SMS.
+ * For Indian numbers, it uses Fast2SMS as the primary method.
  * 
  * NOTE: Currently only Indian phone numbers are fully supported through Fast2SMS.
  * International numbers require Twilio credentials to be configured.
@@ -342,19 +362,35 @@ export async function sendTwilioSMS(phoneNumbers: string[], message: string): Pr
  */
 export async function sendSMS(phoneNumbers: string[], message: string): Promise<SMSResponse> {
   try {
+    console.log('Sending emergency SMS to:', phoneNumbers);
+    
     const response = await apiRequest('POST', '/api/emergency/sms', {
       phoneNumbers,
       message
     });
     
     const data = await response.json();
+    
+    // Handle error responses with improved details
+    if (!data.success && data.error) {
+      console.warn('SMS API error:', data.error);
+      
+      // Check if the error is from Fast2SMS account setup requirements
+      if (data.error.includes('transaction of 100 INR or more')) {
+        console.info('Fast2SMS account setup required: Initial transaction needed to enable API access.');
+        
+        // Adjust error message to be more user-friendly
+        data.message = 'SMS delivery temporarily unavailable. Fast2SMS setup pending. Emergency contact will be attempted through alternative methods.';
+      }
+    }
+    
     return data;
   } catch (error) {
     console.error('Failed to send SMS:', error);
     return {
       success: false,
-      message: 'Failed to send SMS',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Unable to send SMS notifications. Will attempt alternative contact methods.',
+      error: error instanceof Error ? error.message : 'Network or server error'
     };
   }
 }
