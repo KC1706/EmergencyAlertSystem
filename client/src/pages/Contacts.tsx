@@ -129,7 +129,7 @@ export default function Contacts({ lastLocation }: ContactsProps) {
           </button>
         </div>
         
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+{/*         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm font-medium text-blue-800 flex items-center mb-1">
             <span className="material-icons text-blue-500 mr-1" style={{ fontSize: '1rem' }}>info</span>
             How Emergency Notifications Work:
@@ -140,7 +140,7 @@ export default function Contacts({ lastLocation }: ContactsProps) {
             <li>You'll need to manually press "Send" in each app to notify your contacts</li>
             <li>This approach doesn't require any paid services but does require manual confirmation</li>
           </ul>
-        </div>
+        </div> */}
         
         {isLoading ? (
           <div className="py-10 text-center">
